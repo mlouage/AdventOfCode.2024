@@ -5,6 +5,14 @@ import (
 	"io"
 )
 
+/*
+Line Counter
+https://github.com/christiangda/go-line-counter
+
+Provided by JimB (https://stackoverflow.com/users/32880/jimb)
+Post: https://stackoverflow.com/questions/24562942/golang-how-do-i-determine-the-number-of-lines-in-a-file-efficiently
+*/
+
 type LineCounter struct {
 	Size int    // Size of the buffer
 	Sep  string // End of line character
