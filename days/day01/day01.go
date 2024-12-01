@@ -2,8 +2,9 @@ package day01
 
 import (
 	"bufio"
-	"bytes"
-	"io"
+	"context"
+	"fmt"
+	"github.com/mlouage/AdventOfCode.2024/internal/utils"
 	"math"
 	"os"
 	"sort"
@@ -11,51 +12,104 @@ import (
 	"strings"
 )
 
-func Part1(filename string) (int64, error) {
-	numLines, err := countLines(filename)
-
-	if err != nil {
-		return 0, err
-	}
-
-	list1, list2, err := createLists(filename, numLines)
-
-	if err != nil {
-		return 0, err
-	}
-
-	sortLists(list1, list2)
-
-	var totalSum int64
-
-	for i, _ := range list1 {
-		distance := list1[i] - list2[i]
-		totalSum = totalSum + int64(math.Abs(float64(distance)))
-	}
-
-	return totalSum, nil
-
+type NumberPair struct {
+	First  int64
+	Second int64
 }
 
-func Part2(filename string) (int64, error) {
+type FileProcessor struct {
+	pairs []NumberPair
+	lists [][]int64
+}
+
+func NewFileProcessor(capacity int) *FileProcessor {
+	return &FileProcessor{
+		pairs: make([]NumberPair, 0, capacity),
+		lists: make([][]int64, 2),
+	}
+}
+
+func Part1(ctx context.Context, filename string) (sum int64, err error) {
+	processor, err := processFile(ctx, filename)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+
+	return processor.calculateAbsoluteDifferences(), nil
+}
+
+func Part2(ctx context.Context, filename string) (sum int64, err error) {
+	processor, err := processFile(ctx, filename)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+
+	return processor.calculateMatchingNumbers(), nil
+}
+
+func processFile(ctx context.Context, filename string) (*FileProcessor, error) {
 	numLines, err := countLines(filename)
-
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("counting lines: %w", err)
 	}
 
-	list1, list2, err := createLists(filename, numLines)
-
+	processor := NewFileProcessor(numLines)
+	pairs, err := readNumberPairs(ctx, filename)
+	lists := transformToLists(pairs)
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("reading number pairs: %w", err)
 	}
 
+	processor.pairs = pairs
+	processor.lists = lists
+	return processor, nil
+}
+
+func transformToLists(pairs []NumberPair) [][]int64 {
+	lists := make([][]int64, 2)
+
+	var capacity = len(pairs)
+
+	lists[0] = make([]int64, capacity)
+	lists[1] = make([]int64, capacity)
+
+	for i := range pairs {
+		lists[0][i] = pairs[i].First
+		lists[1][i] = pairs[i].Second
+	}
+
+	return lists
+}
+
+func (fp *FileProcessor) calculateAbsoluteDifferences() int64 {
+	lists := make([][]int64, 2)
+	copy(lists, fp.lists)
+
+	sort.Slice(lists[0], func(i, j int) bool {
+		return lists[0][i] < lists[0][j]
+	})
+
+	sort.Slice(lists[1], func(i, j int) bool {
+		return lists[1][i] < lists[1][j]
+	})
+
+	var capacity = len(lists[0])
+	var totalSum int64
+	for i := 0; i < capacity; i++ {
+		distance := lists[0][i] - lists[1][i]
+		totalSum += int64(math.Abs(float64(distance)))
+	}
+
+	return totalSum
+}
+
+func (fp *FileProcessor) calculateMatchingNumbers() int64 {
 	var totalSum int64
 
-	for i, _ := range list1 {
-		number := list1[i]
+	for i := range fp.lists[0] {
+		number := fp.lists[0][i]
 		count := count(
-			list2,
+			fp.lists[1],
 			func(x int64) bool {
 				return x == number
 			})
@@ -63,67 +117,56 @@ func Part2(filename string) (int64, error) {
 		totalSum = totalSum + (number * count)
 	}
 
-	return totalSum, err
+	return totalSum
 }
 
-func count[T any](slice []T, f func(T) bool) int64 {
-	var count int64 = 0
-	for _, s := range slice {
-		if f(s) {
-			count++
-		}
-	}
-	return count
-}
-
-func sortLists(list1 []int64, list2 []int64) {
-	sort.Slice(list1, func(i, j int) bool {
-		return list1[i] < list1[j]
-	})
-
-	sort.Slice(list2, func(i, j int) bool {
-		return list2[i] < list2[j]
-	})
-}
-
-func createLists(filename string, numLines int) ([]int64, []int64, error) {
-	var count int
-
+func readNumberPairs(ctx context.Context, filename string) ([]NumberPair, error) {
 	file, err := os.Open(filename)
-
 	if err != nil {
-		return []int64{}, []int64{}, err
+		return nil, fmt.Errorf("opening file: %w", err)
 	}
-
 	defer file.Close()
 
+	var pairs []NumberPair
 	scanner := bufio.NewScanner(file)
 
-	column1 := make([]int64, numLines)
-	column2 := make([]int64, numLines)
-
 	for scanner.Scan() {
-		line := scanner.Text()
-		numbers := strings.Fields(line)
-
-		if len(numbers) != 2 {
-			continue
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			pair, err := parseNumberPair(scanner.Text())
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", len(pairs)+1, err)
+			}
+			pairs = append(pairs, pair)
 		}
-
-		num1, _ := strconv.ParseInt(numbers[0], 10, 64)
-		num2, _ := strconv.ParseInt(numbers[1], 10, 64)
-
-		column1[count] = num1
-		column2[count] = num2
-
-		count++
 	}
 
 	if err := scanner.Err(); err != nil {
-		return []int64{}, []int64{}, err
+		return nil, fmt.Errorf("scanning file: %w", err)
 	}
 
-	return column1, column2, err
+	return pairs, nil
+}
+
+func parseNumberPair(s string) (NumberPair, error) {
+	numbers := strings.Fields(s)
+	if len(numbers) != 2 {
+		return NumberPair{}, fmt.Errorf("expected 2 numbers, got %d", len(numbers))
+	}
+
+	first, err := strconv.ParseInt(numbers[0], 10, 64)
+	if err != nil {
+		return NumberPair{}, fmt.Errorf("parsing first number: %w", err)
+	}
+
+	second, err := strconv.ParseInt(numbers[1], 10, 64)
+	if err != nil {
+		return NumberPair{}, fmt.Errorf("parsing second number: %w", err)
+	}
+
+	return NumberPair{First: first, Second: second}, nil
 }
 
 func countLines(filename string) (int, error) {
@@ -135,7 +178,7 @@ func countLines(filename string) (int, error) {
 
 	defer file.Close()
 
-	counter := &JimBLineCounter{}
+	counter := utils.NewLineCounter(0, "")
 
 	numLines, err := counter.Count(file)
 
@@ -146,36 +189,13 @@ func countLines(filename string) (int, error) {
 	return numLines, err
 }
 
-type JimBLineCounter struct {
-	Size int    // Size of the buffer
-	Sep  string // End of line character
-}
-
-func (b *JimBLineCounter) Count(r io.Reader) (int, error) {
-	defaultSize := 32 * 1024
-	defaultEndLine := "\n"
-
-	if b.Size == 0 {
-		b.Size = defaultSize
-	}
-
-	if b.Sep == "" {
-		b.Sep = defaultEndLine
-	}
-
-	buf := make([]byte, b.Size)
-	var count int
-
-	for {
-		n, err := r.Read(buf)
-		count += bytes.Count(buf[:n], []byte(b.Sep))
-
-		if err != nil {
-			if err == io.EOF {
-				return count, nil
-			}
-			return count, err
+func count[T any](slice []T, f func(T) bool) int64 {
+	var count int64 = 0
+	for _, s := range slice {
+		if f(s) {
+			count++
 		}
-
 	}
+
+	return count
 }
