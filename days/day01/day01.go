@@ -2,129 +2,180 @@ package day01
 
 import (
 	"bufio"
-	"fmt"
+	"bytes"
+	"io"
+	"math"
 	"os"
-	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 )
 
-func Part1(filename string) (int, error) {
-	file, err := os.Open(filename)
+func Part1(filename string) (int64, error) {
+	numLines, err := countLines(filename)
 
 	if err != nil {
 		return 0, err
 	}
 
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
+	list1, list2, err := createLists(filename, numLines)
 
-		}
-	}(file)
-
-	var totalSum int
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		numbers := extractNumbers(line)
-
-		if len(numbers) > 0 {
-			first := numbers[0]
-			last := numbers[len(numbers)-1]
-			combinedStr := fmt.Sprintf("%d%d", first, last)
-			num, _ := strconv.Atoi(combinedStr)
-			totalSum += num
-		}
+	if err != nil {
+		return 0, err
 	}
 
-	if err := scanner.Err(); err != nil {
-		return 0, err
+	sortLists(list1, list2)
+
+	var totalSum int64
+
+	for i, _ := range list1 {
+		distance := list1[i] - list2[i]
+		totalSum = totalSum + int64(math.Abs(float64(distance)))
 	}
 
 	return totalSum, nil
 
 }
 
-func Part2(filename string) (int, error) {
-	file, err := os.Open(filename)
+func Part2(filename string) (int64, error) {
+	numLines, err := countLines(filename)
+
 	if err != nil {
 		return 0, err
 	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
 
-		}
-	}(file)
+	list1, list2, err := createLists(filename, numLines)
 
-	sum := 0
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		digits := extractDigits(line)
-
-		if len(digits) > 0 {
-			firstNum := digits[0]
-			lastNum := digits[len(digits)-1]
-			combinedNumStr := firstNum + lastNum
-
-			if combinedNum, err := strconv.Atoi(combinedNumStr); err == nil {
-				sum += combinedNum
-			}
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
+	if err != nil {
 		return 0, err
 	}
 
-	return sum, nil
-}
+	var totalSum int64
 
-func extractNumbers(s string) []int {
-	re := regexp.MustCompile("[0-9]+")
-	matches := re.FindAllString(s, -1)
+	for i, _ := range list1 {
+		number := list1[i]
+		count := count(
+			list2,
+			func(x int64) bool {
+				return x == number
+			})
 
-	var numbers []int
-	for _, match := range matches {
-		num, _ := strconv.Atoi(match)
-		numbers = append(numbers, num)
+		totalSum = totalSum + (number * count)
 	}
 
-	return numbers
+	return totalSum, err
 }
 
-var wordToDigit = map[string]string{
-	"zero":  "0",
-	"one":   "1",
-	"two":   "2",
-	"three": "3",
-	"four":  "4",
-	"five":  "5",
-	"six":   "6",
-	"seven": "7",
-	"eight": "8",
-	"nine":  "9",
-}
-
-func isNumeric(s string) bool {
-	_, err := strconv.Atoi(s)
-	return err == nil
-}
-
-func extractDigits(line string) []string {
-	var digits []string
-	numberRegex := regexp.MustCompile(`\d+|zero|one|two|three|four|five|six|seven|eight|nine`)
-
-	matches := numberRegex.FindAllString(line, -1)
-	for _, match := range matches {
-		if digit, ok := wordToDigit[match]; ok {
-			digits = append(digits, digit)
-		} else if isNumeric(match) {
-			digits = append(digits, match)
+func count[T any](slice []T, f func(T) bool) int64 {
+	var count int64 = 0
+	for _, s := range slice {
+		if f(s) {
+			count++
 		}
 	}
-	return digits
+	return count
+}
+
+func sortLists(list1 []int64, list2 []int64) {
+	sort.Slice(list1, func(i, j int) bool {
+		return list1[i] < list1[j]
+	})
+
+	sort.Slice(list2, func(i, j int) bool {
+		return list2[i] < list2[j]
+	})
+}
+
+func createLists(filename string, numLines int) ([]int64, []int64, error) {
+	var count int
+
+	file, err := os.Open(filename)
+
+	if err != nil {
+		return []int64{}, []int64{}, err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	column1 := make([]int64, numLines)
+	column2 := make([]int64, numLines)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		numbers := strings.Fields(line)
+
+		if len(numbers) != 2 {
+			continue
+		}
+
+		num1, _ := strconv.ParseInt(numbers[0], 10, 64)
+		num2, _ := strconv.ParseInt(numbers[1], 10, 64)
+
+		column1[count] = num1
+		column2[count] = num2
+
+		count++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return []int64{}, []int64{}, err
+	}
+
+	return column1, column2, err
+}
+
+func countLines(filename string) (int, error) {
+	file, err := os.Open(filename)
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer file.Close()
+
+	counter := &JimBLineCounter{}
+
+	numLines, err := counter.Count(file)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return numLines, err
+}
+
+type JimBLineCounter struct {
+	Size int    // Size of the buffer
+	Sep  string // End of line character
+}
+
+func (b *JimBLineCounter) Count(r io.Reader) (int, error) {
+	defaultSize := 32 * 1024
+	defaultEndLine := "\n"
+
+	if b.Size == 0 {
+		b.Size = defaultSize
+	}
+
+	if b.Sep == "" {
+		b.Sep = defaultEndLine
+	}
+
+	buf := make([]byte, b.Size)
+	var count int
+
+	for {
+		n, err := r.Read(buf)
+		count += bytes.Count(buf[:n], []byte(b.Sep))
+
+		if err != nil {
+			if err == io.EOF {
+				return count, nil
+			}
+			return count, err
+		}
+
+	}
 }

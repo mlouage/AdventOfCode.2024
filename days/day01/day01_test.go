@@ -5,8 +5,9 @@ import (
 )
 
 func TestDay01Part01(t *testing.T) {
-	expectedSum := 142
-	actualSum, err := Part1("test_part1.txt")
+	// var expectedSum int64 = 11
+	var expectedSum int64 = 3574690
+	actualSum, err := Part1("input.txt")
 
 	if err != nil {
 		t.Fatalf("Error calling Day01_Part1: %v", err)
@@ -20,8 +21,9 @@ func TestDay01Part01(t *testing.T) {
 }
 
 func TestDay01Part02(t *testing.T) {
-	expectedSum := 281
-	actualSum, err := Part2("test_part2.txt")
+	// var expectedSum int64 = 31
+	var expectedSum int64 = 22565391
+	actualSum, err := Part2("input.txt")
 
 	if err != nil {
 		t.Fatalf("Error calling Day01_Part2: %v", err)
