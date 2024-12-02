@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -20,14 +21,19 @@ const (
 	Levelling
 )
 
-func Part1(ctx context.Context, filename string) (sum int64, err error) {
+func Part1(ctx context.Context, filename string) (sum int, err error) {
 	reports, err := readReports(ctx, filename)
 	if err != nil {
 		return 0, fmt.Errorf("processing file: %w", err)
 	}
 
-	_ = reports
-	return 0, nil
+	count := 0
+	for _, report := range reports {
+		if report.isSafe() {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func Part2(ctx context.Context, filename string) (sum int64, err error) {
@@ -35,19 +41,39 @@ func Part2(ctx context.Context, filename string) (sum int64, err error) {
 }
 
 func (report *Report) isSafe() bool {
-	var isSafe bool
+	isSafe := true
 	var capacity = len(report.Levels)
 
 	if capacity < 2 {
 		return false
 	}
 
-	direction := isIncreasing(report.Levels[0], report.Levels[1])
+	direction := getDirection(report.Levels[0], report.Levels[1])
+	difference := math.Abs(float64(report.Levels[0]) - float64(report.Levels[1]))
+	if direction == Levelling || (difference > 3) {
+		return false
+	}
+
+	for i := 1; i < capacity-1; i++ {
+		currentDirection := getDirection(report.Levels[i], report.Levels[i+1])
+		if currentDirection == Levelling {
+			isSafe = false
+			break
+		}
+		difference = math.Abs(float64(report.Levels[i]) - float64(report.Levels[i+1]))
+		if direction == currentDirection && (difference >= 1 && difference <= 3) {
+			direction = currentDirection
+			continue
+		} else {
+			isSafe = false
+			break
+		}
+	}
 
 	return isSafe
 }
 
-func isIncreasing(level1, level2 int) Direction {
+func getDirection(level1, level2 int) Direction {
 	if level1 == level2 {
 		return Levelling
 	}
@@ -76,7 +102,7 @@ func readReports(ctx context.Context, filename string) ([]Report, error) {
 		default:
 			levels, err := parseLevels(scanner.Text())
 			if err != nil {
-				return nil, fmt.Errorf("line %d: %w", len(pairs)+1, err)
+				return nil, fmt.Errorf("line %d: %w", len(levels)+1, err)
 			}
 			reports = append(reports, Report{Levels: levels})
 		}
@@ -100,7 +126,7 @@ func parseLevels(s string) ([]int, error) {
 		if err != nil {
 			return []int{}, fmt.Errorf("parsing level: %w", err)
 		}
-		levels = append(levels, level)
+		levels[i] = level
 	}
 
 	return levels, nil

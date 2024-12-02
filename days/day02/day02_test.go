@@ -8,10 +8,10 @@ import (
 func TestDay02Part01(t *testing.T) {
 	ctx := context.Background()
 
-	var expectedSum int64 = 2
-	actualSum, err := Part1(ctx, "test_part1.txt")
-	//var expectedSum int64 = 3574690
-	//actualSum, err := Part1(ctx, "input.txt")
+	//var expectedSum int = 2
+	//actualSum, err := Part1(ctx, "test_part1.txt")
+	var expectedSum int = 0
+	actualSum, err := Part1(ctx, "input.txt")
 
 	if err != nil {
 		t.Fatalf("Error calling Day01_Part1: %v", err)
