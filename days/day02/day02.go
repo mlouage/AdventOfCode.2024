@@ -36,8 +36,23 @@ func Part1(ctx context.Context, filename string) (sum int, err error) {
 	return count, nil
 }
 
-func Part2(ctx context.Context, filename string) (sum int64, err error) {
-	return 0, nil
+func Part2(ctx context.Context, filename string) (sum int, err error) {
+	reports, err := readReports(ctx, filename)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+
+	count := 0
+	for _, report := range reports {
+		if report.isSafe() {
+			count++
+		} else {
+			if report.isSafeWithDampener() {
+				count++
+			}
+		}
+	}
+	return count, nil
 }
 
 func (report *Report) isSafe() bool {
@@ -71,6 +86,28 @@ func (report *Report) isSafe() bool {
 	}
 
 	return isSafe
+}
+
+func (report *Report) isSafeWithDampener() bool {
+	capacity := len(report.Levels)
+	levels := make([]int, capacity)
+	copy(levels, report.Levels)
+
+	for index := 0; index < capacity; index++ {
+		var newLevels []int
+		for i := 0; i < capacity; i++ {
+			if i == index {
+				continue
+			}
+			newLevels = append(newLevels, levels[i])
+		}
+		newReport := Report{Levels: newLevels}
+		if newReport.isSafe() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func getDirection(level1, level2 int) Direction {
