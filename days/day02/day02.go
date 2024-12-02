@@ -21,7 +21,7 @@ const (
 	Levelling
 )
 
-func Part1(ctx context.Context, filename string) (sum int, err error) {
+func Part1(ctx context.Context, filename string) (int, error) {
 	reports, err := readReports(ctx, filename)
 	if err != nil {
 		return 0, fmt.Errorf("processing file: %w", err)
@@ -29,14 +29,14 @@ func Part1(ctx context.Context, filename string) (sum int, err error) {
 
 	count := 0
 	for _, report := range reports {
-		if report.isSafe() {
+		if report.safe() {
 			count++
 		}
 	}
 	return count, nil
 }
 
-func Part2(ctx context.Context, filename string) (sum int, err error) {
+func Part2(ctx context.Context, filename string) (int, error) {
 	reports, err := readReports(ctx, filename)
 	if err != nil {
 		return 0, fmt.Errorf("processing file: %w", err)
@@ -44,10 +44,10 @@ func Part2(ctx context.Context, filename string) (sum int, err error) {
 
 	count := 0
 	for _, report := range reports {
-		if report.isSafe() {
+		if report.safe() {
 			count++
 		} else {
-			if report.isSafeWithDampener() {
+			if report.safeWithDamp() {
 				count++
 			}
 		}
@@ -55,54 +55,48 @@ func Part2(ctx context.Context, filename string) (sum int, err error) {
 	return count, nil
 }
 
-func (report *Report) isSafe() bool {
-	isSafe := true
-	var capacity = len(report.Levels)
-
-	if capacity < 2 {
+func (r *Report) safe() bool {
+	if len(r.Levels) < 2 {
 		return false
 	}
 
-	direction := getDirection(report.Levels[0], report.Levels[1])
-	difference := math.Abs(float64(report.Levels[0]) - float64(report.Levels[1]))
-	if direction == Levelling || (difference > 3) {
+	dir := getDirection(r.Levels[0], r.Levels[1])
+	diff := math.Abs(float64(r.Levels[0]) - float64(r.Levels[1]))
+	if dir == Levelling || diff > 3 {
 		return false
 	}
 
-	for i := 1; i < capacity-1; i++ {
-		currentDirection := getDirection(report.Levels[i], report.Levels[i+1])
-		if currentDirection == Levelling {
-			isSafe = false
-			break
+	for i := 1; i < len(r.Levels)-1; i++ {
+		currDir := getDirection(r.Levels[i], r.Levels[i+1])
+		if currDir == Levelling {
+			return false
 		}
-		difference = math.Abs(float64(report.Levels[i]) - float64(report.Levels[i+1]))
-		if direction == currentDirection && (difference >= 1 && difference <= 3) {
-			direction = currentDirection
-			continue
-		} else {
-			isSafe = false
-			break
+
+		diff = math.Abs(float64(r.Levels[i]) - float64(r.Levels[i+1]))
+		if dir != currDir || diff < 1 || diff > 3 {
+			return false
 		}
 	}
 
-	return isSafe
+	return true
 }
 
-func (report *Report) isSafeWithDampener() bool {
-	capacity := len(report.Levels)
-	levels := make([]int, capacity)
-	copy(levels, report.Levels)
+func (r *Report) safeWithDamp() bool {
+	levels := r.Levels
 
-	for index := 0; index < capacity; index++ {
-		var newLevels []int
-		for i := 0; i < capacity; i++ {
-			if i == index {
-				continue
-			}
-			newLevels = append(newLevels, levels[i])
-		}
-		newReport := Report{Levels: newLevels}
-		if newReport.isSafe() {
+	// Pre-allocate the slice with capacity = len-1
+	newLevels := make([]int, 0, len(levels)-1)
+
+	// Try removing each element one at a time
+	for i := range levels {
+		// Reset the slice but keep the capacity
+		newLevels = newLevels[:0]
+
+		// Build new slice excluding index i
+		newLevels = append(newLevels, levels[:i]...)
+		newLevels = append(newLevels, levels[i+1:]...)
+
+		if (&Report{Levels: newLevels}).safe() {
 			return true
 		}
 	}
@@ -154,9 +148,7 @@ func readReports(ctx context.Context, filename string) ([]Report, error) {
 
 func parseLevels(s string) ([]int, error) {
 	input := strings.Fields(s)
-	var capacity = len(input)
-
-	levels := make([]int, capacity)
+	levels := make([]int, len(input))
 
 	for i := range input {
 		level, err := strconv.Atoi(input[i])
