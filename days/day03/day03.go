@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type NumberPair struct {
@@ -25,20 +26,24 @@ func NewFileProcessor() *FileProcessor {
 }
 
 func Part1(ctx context.Context, filename string) (int64, error) {
-	processor, err := processFile(ctx, filename)
+	processor, err := processFile(ctx, filename, false)
 	if err != nil {
 		return 0, fmt.Errorf("processing file: %w", err)
 	}
 	return processor.calc(), nil
 }
 
-func Part2(ctx context.Context, filename string) (int, error) {
-	return 0, nil
+func Part2(ctx context.Context, filename string) (int64, error) {
+	processor, err := processFile(ctx, filename, true)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+	return processor.calc(), nil
 }
 
-func processFile(ctx context.Context, filename string) (*FileProcessor, error) {
+func processFile(ctx context.Context, filename string, strict bool) (*FileProcessor, error) {
 	processor := NewFileProcessor()
-	pairs, err := parseNumberPairs(ctx, filename)
+	pairs, err := parseNumberPairs(ctx, filename, strict)
 	if err != nil {
 		return nil, fmt.Errorf("reading number pairs: %w", err)
 	}
@@ -47,7 +52,9 @@ func processFile(ctx context.Context, filename string) (*FileProcessor, error) {
 	return processor, nil
 }
 
-func parseNumberPairs(ctx context.Context, filename string) ([]NumberPair, error) {
+func parseNumberPairs(ctx context.Context, filename string, strict bool) ([]NumberPair, error) {
+	canAppend := true
+
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Error reading file: %v", err)
@@ -55,26 +62,37 @@ func parseNumberPairs(ctx context.Context, filename string) ([]NumberPair, error
 
 	input := string(content)
 
-	pattern := `mul\((\d{1,3}),(\d{1,3})\)`
+	pattern := `(?:mul\((\d{1,3}),(\d{1,3})\)|(?:do|don't)\(\))`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringSubmatch(input, -1)
 
 	pairs := make([]NumberPair, 0, len(matches))
 
 	for i, match := range matches {
-		first, err1 := strconv.ParseInt(match[1], 10, 64)
-		second, err2 := strconv.ParseInt(match[2], 10, 64)
-
-		if err1 != nil || err2 != nil {
-			fmt.Printf("Error parsing numbers from match %d: %s\n", i+1, match[0])
+		if strings.HasPrefix(match[0], "do(") {
+			canAppend = true
+		}
+		if strings.HasPrefix(match[0], "don't(") {
+			canAppend = false
+		}
+		if strict && !canAppend {
 			continue
 		}
+		if strings.HasPrefix(match[0], "mul") {
+			first, err1 := strconv.ParseInt(match[1], 10, 64)
+			second, err2 := strconv.ParseInt(match[2], 10, 64)
 
-		pair := NumberPair{
-			First:  first,
-			Second: second,
+			if err1 != nil || err2 != nil {
+				fmt.Printf("Error parsing numbers from match %d: %s\n", i+1, match[0])
+				continue
+			}
+
+			pair := NumberPair{
+				First:  first,
+				Second: second,
+			}
+			pairs = append(pairs, pair)
 		}
-		pairs = append(pairs, pair)
 	}
 
 	return pairs, nil
