@@ -9,10 +9,10 @@ func TestDay03Part1(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
-		want     int
+		want     int64
 	}{
-		{"sample input", "test_part1.txt", 0},
-		{"real input", "input.txt", 0},
+		{"sample input", "test_part1.txt", 161},
+		{"real input", "input.txt", 175015740},
 	}
 
 	for _, tt := range tests {
