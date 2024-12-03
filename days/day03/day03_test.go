@@ -1,7 +1,6 @@
 package day03
 
 import (
-	"context"
 	"testing"
 )
 
@@ -17,7 +16,7 @@ func TestDay03Part1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Part1(context.Background(), tt.filename)
+			got, err := Part1(tt.filename)
 			if err != nil {
 				t.Fatalf("Part1(%q) error = %v", tt.filename, err)
 			}
@@ -40,7 +39,7 @@ func TestDay03Part2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Part2(context.Background(), tt.filename)
+			got, err := Part2(tt.filename)
 			if err != nil {
 				t.Fatalf("Part1(%q) error = %v", tt.filename, err)
 			}
