@@ -38,7 +38,14 @@ func Part1(ctx context.Context, filename string) (int, error) {
 }
 
 func Part2(ctx context.Context, filename string) (int, error) {
-	return 0, nil
+	puzzle, err := createPuzzle(ctx, filename)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+
+	sum := puzzle.countMasX()
+
+	return sum, nil
 }
 
 func createPuzzle(ctx context.Context, filename string) (*PuzzleProcessor, error) {
@@ -99,6 +106,22 @@ func (pp *PuzzleProcessor) countXmas() int {
 	return totalCount
 }
 
+func (pp *PuzzleProcessor) countMasX() int {
+	totalCount := 0
+
+	for i := 0; i < pp.rows; i++ {
+		for j := 0; j < pp.cols; j++ {
+			if pp.data[i][j] == "A" {
+				if pp.hasMasX(i, j) {
+					totalCount++
+				}
+			}
+		}
+	}
+
+	return totalCount
+}
+
 func (pp *PuzzleProcessor) hasXmas(row int, col int) int {
 	totalCount := 0
 
@@ -135,6 +158,25 @@ func (pp *PuzzleProcessor) hasXmas(row int, col int) int {
 	}
 
 	return totalCount
+}
+
+func (pp *PuzzleProcessor) hasMasX(row int, col int) bool {
+	if !pp.isValidX(row, col) {
+		return false
+	}
+
+	if pp.data[row+1][col+1] == "M" && pp.data[row-1][col-1] == "S" &&
+		pp.data[row-1][col+1] == "M" && pp.data[row+1][col-1] == "S" ||
+		pp.data[row+1][col+1] == "M" && pp.data[row-1][col-1] == "S" &&
+			pp.data[row+1][col-1] == "M" && pp.data[row-1][col+1] == "S" ||
+		pp.data[row-1][col-1] == "M" && pp.data[row+1][col+1] == "S" &&
+			pp.data[row-1][col+1] == "M" && pp.data[row+1][col-1] == "S" ||
+		pp.data[row-1][col-1] == "M" && pp.data[row+1][col+1] == "S" &&
+			pp.data[row+1][col-1] == "M" && pp.data[row-1][col+1] == "S" {
+		return true
+	}
+
+	return false
 }
 
 func (pp *PuzzleProcessor) checkHorizontal(row int, colStart int, colEnd int) bool {
@@ -225,6 +267,14 @@ func (pp *PuzzleProcessor) checkVertical(rowStart int, rowEnd int, col int) bool
 
 func (pp *PuzzleProcessor) isValid(row int, col int) bool {
 	if row >= 0 && row <= pp.rows-1 && col >= 0 && col <= pp.cols-1 {
+		return true
+	}
+
+	return false
+}
+
+func (pp *PuzzleProcessor) isValidX(row int, col int) bool {
+	if pp.isValid(row-1, col-1) && pp.isValid(row+1, col+1) && pp.isValid(row-1, col+1) && pp.isValid(row+1, col-1) {
 		return true
 	}
 

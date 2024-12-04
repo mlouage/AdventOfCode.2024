@@ -34,8 +34,8 @@ func TestDay04Part2(t *testing.T) {
 		filename string
 		want     int
 	}{
-		{"sample input", "test_part2.txt", 0},
-		{"real input", "input.txt", 0},
+		{"sample input", "test_part2.txt", 9},
+		{"real input", "input.txt", 1972},
 	}
 
 	for _, tt := range tests {
