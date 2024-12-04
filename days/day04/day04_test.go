@@ -12,7 +12,7 @@ func TestDay04Part1(t *testing.T) {
 		want     int
 	}{
 		{"sample input", "test_part1.txt", 18},
-		{"real input", "input.txt", 0},
+		{"real input", "input.txt", 2578},
 	}
 
 	for _, tt := range tests {
