@@ -43,7 +43,20 @@ func Part1(ctx context.Context, filename string) (int, error) {
 }
 
 func Part2(ctx context.Context, filename string) (int, error) {
-	return 0, nil
+	pageRules, pageUpdates, err := parseRulesAndUpdates(ctx, filename)
+	if err != nil {
+		return 0, fmt.Errorf("processing file: %w", err)
+	}
+
+	sum := 0
+	for _, update := range pageUpdates {
+		if !isValidOrder(update.Updates, pageRules) {
+			orderedUpdate := topologicalSort(update.Updates, pageRules)
+			sum += getMiddleNumber(orderedUpdate)
+		}
+	}
+
+	return sum, nil
 }
 
 func parseRulesAndUpdates(ctx context.Context, filename string) ([]PageRule, []PageUpdate, error) {
@@ -117,4 +130,70 @@ func convertToArray(input string, sep string) ([]int, bool, error) {
 	}
 
 	return intSlice, true, nil
+}
+
+func buildDependencyGraph(pages []int, rules []PageRule) map[int][]int {
+	// Create a map of pages that must come before each page
+	dependencies := make(map[int][]int)
+
+	// Initialize empty dependencies for all pages
+	for _, page := range pages {
+		if _, exists := dependencies[page]; !exists {
+			dependencies[page] = []int{}
+		}
+	}
+
+	// Add dependencies based on rules
+	for _, rule := range rules {
+		if containsPage(pages, rule.Before) && containsPage(pages, rule.After) {
+			dependencies[rule.After] = append(dependencies[rule.After], rule.Before)
+		}
+	}
+
+	return dependencies
+}
+
+func containsPage(pages []int, page int) bool {
+	for _, p := range pages {
+		if p == page {
+			return true
+		}
+	}
+	return false
+}
+
+func topologicalSort(pages []int, rules []PageRule) []int {
+	dependencies := buildDependencyGraph(pages, rules)
+	visited := make(map[int]bool)
+	temp := make(map[int]bool)
+	var order []int
+
+	var visit func(page int)
+	visit = func(page int) {
+		if temp[page] {
+			return // Skip if already in temporary mark (handles cycles)
+		}
+		if visited[page] {
+			return // Skip if already visited
+		}
+		temp[page] = true
+
+		// Visit dependencies
+		for _, dep := range dependencies[page] {
+			visit(dep)
+		}
+
+		temp[page] = false
+		visited[page] = true
+		order = append([]int{page}, order...)
+	}
+
+	// Visit all pages
+	for _, page := range pages {
+		if !visited[page] {
+			visit(page)
+		}
+	}
+
+	return order
 }
